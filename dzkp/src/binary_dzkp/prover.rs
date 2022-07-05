@@ -1,6 +1,7 @@
-use crate::mersenne_field::{add_mod, mul_mod};
+use crate::mersenne_field::*;
+use crate::polynomial::*;
 use merlin::Transcript;
 
-pub fn prove_and_p1(
+pub fn prove_p1(
     
 )

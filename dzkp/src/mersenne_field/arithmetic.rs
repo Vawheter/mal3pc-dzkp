@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 static MERSENNE_PRIME_EXP: usize = 61;
 static SHIFT: usize = 3;
 static PR: u64 = 2305843009213693951; // 2^61 - 1

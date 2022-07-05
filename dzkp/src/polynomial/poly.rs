@@ -63,7 +63,7 @@ impl Poly {
     pub fn rand<R: Rng>(d: usize, rng: &mut R) -> Self {
         let mut random_coeffs: Vec<u64> = Vec::new();
         for _ in 0..=d {
-            random_coeffs.push(rng.gen());
+            random_coeffs.push(modp(rng.gen()));
         }
         Self::from_coefficients_vec(random_coeffs)
     }
@@ -98,7 +98,7 @@ impl Poly {
             .enumerate()
             .map(|(i, chunk)| {
                 let mut thread_result = Self::horner_evaluate(&chunk, point);
-                thread_result *= point.pow(&[(i * num_elem_per_thread) as u64]);
+                thread_result *= modp(point.pow(&[(i * num_elem_per_thread) as u64]));
                 thread_result
             })
             .sum();
