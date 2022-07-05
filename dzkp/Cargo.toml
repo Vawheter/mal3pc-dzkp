@@ -1,0 +1,16 @@
+[package]
+name = "dzkp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+
+[dependencies]
+merlin = { version = "2.0", default-features = false }
+rand = { version = "0.7", default-features = false }
+rayon = { version = "1", optional = true }
+
+[dev-dependencies]
+rand = { version = "0.7" }
