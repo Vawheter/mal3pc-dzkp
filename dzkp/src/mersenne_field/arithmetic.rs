@@ -1,7 +1,7 @@
 static MERSENNE_PRIME_EXP: usize = 61;
 static SHIFT: usize = 3;
-pub static PR: u64 = 2305843009213693951; // 2^61 - 1
-static PR_128: u128 = 2305843009213693951; // 2^61 - 1
+static PR: u64 = 2305843009213693951; // 2^61 - 1
+// static PR_128: u128 = 2305843009213693951; // 2^61 - 1
 
 pub fn modp(a: u64) -> u64 {
     let i: u64 = (a & PR) + (a >> MERSENNE_PRIME_EXP);

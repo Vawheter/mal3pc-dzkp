@@ -1,11 +1,11 @@
 pub mod arithmetic;
-pub use arithmetic::{modp, add_modp, sub_modp, mul_modp, inverse};
+pub use arithmetic::*;
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn test_modp() {
-        use crate::mersenne_field::{modp};
+        use crate::mersenne_field::modp;
         use rand::{thread_rng, Rng};
         
         let PR: u64 = 2305843009213693951; // 2^61 - 1
