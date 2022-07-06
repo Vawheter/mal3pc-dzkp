@@ -63,7 +63,7 @@ impl Poly {
     pub fn rand<R: Rng>(d: usize, rng: &mut R) -> Self {
         let mut random_coeffs: Vec<u64> = Vec::new();
         for _ in 0..=d {
-            random_coeffs.push(modp(rng.gen()));
+            random_coeffs.push(rand_modp(rng));
         }
         Self::from_coefficients_vec(random_coeffs)
     }
@@ -114,7 +114,7 @@ impl Poly {
         self.internal_evaluate(point)
     }
 
-    pub fn add(self, other: &Self) -> Self {
+    pub fn add(&self, other: &Self) -> Self {
         let mut result = if self.is_zero() {
             other.clone()
         } else if other.is_zero() {
@@ -127,7 +127,7 @@ impl Poly {
                 .zip(&other.coeffs)
                 .for_each(|(a, b)| {
                     // *a += b;
-                    *a = mul_modp(*a, *b)
+                    *a = add_modp(*a, *b);
                 });
             result
         } else {
@@ -138,7 +138,38 @@ impl Poly {
                 .zip(&self.coeffs)
                 .for_each(|(a, b)| {
                     // *a += b;
-                    *a = mul_modp(*a, *b)
+                    *a = add_modp(*a, *b);
+                });
+            result
+        };
+        result.truncate_leading_zeros();
+        result
+    }
+
+    pub fn sub(&self, other: &Self) -> Self {
+        let mut result = if other.is_zero() {
+            self.clone()
+        } else if self.degree() >= other.degree() {
+            let mut result = self.clone();
+            result
+                .coeffs
+                .iter_mut()
+                .zip(&other.coeffs)
+                .for_each(|(a, b)| {
+                    // *a -= b;
+                    *a = sub_modp(*a, *b);
+                });
+            result
+        } else {
+            let mut result = other.clone();
+            result
+                .coeffs
+                .iter_mut()
+                .zip(&self.coeffs)
+                .for_each(|(a, b)| {
+                    // *a += b;
+                    *a = sub_modp(*a, *b);
+                    *a = neg_modp(*a);
                 });
             result
         };
@@ -156,6 +187,18 @@ impl Poly {
                     // result[i + j] += &(*self_coeff * other_coeff);
                     result[i + j] = add_modp(result[i + j], mul_modp(*self_coeff, *other_coeff));
                 }
+            }
+            Self { coeffs: result }
+        }
+    }
+
+    pub fn cmul(&self, c: u64) -> Self {
+        if self.is_zero() || c == 0u64 {
+            Self::zero()
+        } else {
+            let mut result = vec![0u64; self.degree() + 1];
+            for (i, self_coeff) in self.coeffs.iter().enumerate() {
+                result[i] = mul_modp(*self_coeff, c);
             }
             Self { coeffs: result }
         }

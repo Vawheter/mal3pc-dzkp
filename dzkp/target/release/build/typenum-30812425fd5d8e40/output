@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/data/mal3pc-dzkp/dzkp/target/release/build/typenum-30812425fd5d8e40/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/data/mal3pc-dzkp/dzkp/target/release/build/typenum-30812425fd5d8e40/out/op.rs

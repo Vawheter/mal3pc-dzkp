@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use rand::Rng;
+
 static MERSENNE_PRIME_EXP: usize = 61;
 static SHIFT: usize = 3;
 static PR: u64 = 2305843009213693951; // 2^61 - 1
@@ -10,9 +12,21 @@ pub fn modp(a: u64) -> u64 {
 	if i >= PR {i - PR} else {i}
 }
 
+// pub fn neg_modp(a: u64) -> u64 {
+//     if a > PR {
+//         PR - (a - PR)
+//     } else {
+//         PR - a
+//     } 
+// }
+
+pub fn neg_modp(a: u64) -> u64 {
+    PR - a
+}
+
 pub fn add_modp(a: u64, b: u64) -> u64 {
     let res: u64 = a + b; // all less than 2^61 - 1 , thus won't overflow 2^64
-    if res >= PR {res - PR} else {res}
+    if res >= PR { res - PR } else { res }
 }
 
 pub fn sub_modp(a: u64, b: u64) -> u64 {
@@ -29,7 +43,7 @@ pub fn mul_modp(a: u64, b: u64) -> u64 {
     let c = (cc >> 64) as u64;
 	let e = cc as u64;
     let res: u64 = (e & PR) + ((e >> MERSENNE_PRIME_EXP) ^ (c << SHIFT));
-	if res >= PR {res - PR} else {res}
+	if res >= PR { res - PR } else { res }
 }
 
 fn egcd(a: u64, b: u64) -> (u64, u64, u64) {
@@ -62,4 +76,8 @@ pub fn inverse(a: u64) -> u64 {
     let (g, x, _) = egcd(a, PR);
     assert_eq!(g, 1);
     modp(x)
+}
+
+pub fn rand_modp<R: Rng>(rng: &mut R) -> u64 {
+    rng.gen_range(0, PR)
 }

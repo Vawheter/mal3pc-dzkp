@@ -24,11 +24,12 @@ pub fn get_lagrange_bases(n: u64) -> Vec<Poly> {
 }
 
 pub fn interpolate(lag_bases: &Vec<Poly>, evals: &Vec<u64>) -> Poly {
-    let n = evals.len();
-    assert_eq!(lag_bases.len(), n);
-    let mut coeffs = vec![0u64; n];
-    for i in 0..n {
-        for j in 0..n {
+    let len_evals = evals.len();
+    let len_lags = lag_bases.len();
+    assert!(len_evals <= len_lags); // padding zeros in default
+    let mut coeffs = vec![0u64; len_lags];
+    for i in 0..len_evals {
+        for j in 0..len_lags {
             coeffs[j] = add_modp(coeffs[j], mul_modp(lag_bases[i].coeffs[j], evals[i]));
         }
     }
