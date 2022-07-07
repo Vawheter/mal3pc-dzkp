@@ -69,6 +69,8 @@ fn fliop<R: Rng>(
     println!("Lagrange time: {:?}", lag_time);
 
     loop {
+        println!("s: {:?}", s);
+
         // Interpolation
         let interpolation_start = Instant::now();
         let mut f_polys: Vec<Vec<Poly>> = Vec::new();
@@ -166,19 +168,19 @@ fn fliop<R: Rng>(
 // v11 = r_{xy,1}r_{z_1} - r_{xy,1} - r_{z_1}
 // 4(v0v1 - v2v3) - 2(v4v1 + v5v1 + v2v6 + v2v7) + v8v1 + v2v9 + v10 + v11
 // (4v0 - 2(v4 + v5) + v8)v1 - (4v3 + 2v6 + 2v7 - v9)v2 + v10 + v11
+// v0 = 4v0 - 2(v4 + v5) + v8, v1 = v1
+// v2 = 4v3 + 2v6 + 2v7 - v9, v3 = v2
+// v4 = v10 + v11
+// v0 * v1 + v2 * v3 + v4 = 0
 fn circuit1(input_polys: &Vec<Vec<Poly>>, etas: &Vec<u64>) -> Poly
 {
-    assert_eq!(input_polys.len(), 12); // 12 variables in total
+    assert_eq!(input_polys.len(), 5); // 5 variables in total
     let s = input_polys[0].len();
     let mut poly = Poly::zero();
     for i in 0..s {
-        let tmp1 = input_polys[0][i].cmul(4);
-        let tmp2 = input_polys[4][i].add(&input_polys[5][i]).cmul(2);
-        let tmp3 = tmp1.sub(&tmp2).add(&input_polys[8][i]).mul(&input_polys[1][i]);
-        let tmp4 = input_polys[3][i].cmul(4);
-        let tmp5 = input_polys[6][i].add(&input_polys[7][i]).cmul(2);
-        let tmp6 = tmp4.add(&tmp5).sub(&input_polys[9][i]).mul(&input_polys[2][i]);
-        let res = tmp3.sub(&tmp6).add(&input_polys[10][i]).add(&input_polys[11][i]);
+        let tmp1 = input_polys[0][i].mul(&input_polys[1][i]);
+        let tmp2 = input_polys[2][i].mul(&input_polys[3][i]);
+        let res = tmp1.add(&tmp2).add(&input_polys[4][i]);
         poly = poly.add(&res.cmul(etas[i]));
     }
     poly

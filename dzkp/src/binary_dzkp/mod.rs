@@ -12,12 +12,11 @@ mod tests {
         use rand::{thread_rng, Rng};
         use ark_serialize::CanonicalSerialize;
 
-        let T: usize = 1000;
-        let L: usize = 12;
+        let T: usize = 10000;
+        let L: usize = 5;
         let k: usize = 8; 
         let party_id: usize = 1;
 
-        let T: usize = 1000000;
         println!("T: {}", T);
     
         let mut rng = &mut thread_rng();
