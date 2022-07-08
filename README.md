@@ -9,7 +9,9 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ##### 运行某个测试
 切换到dzkp目录，运行
+
 cargo test xxx --release -- --nocapture
+
 xxx是测试函数名称，--release开启优化，-- --nocapture打印输出
 
 ##### 运行所有测试
