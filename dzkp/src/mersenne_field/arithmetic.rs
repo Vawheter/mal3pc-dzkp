@@ -5,11 +5,10 @@ use rand::Rng;
 static MERSENNE_PRIME_EXP: usize = 61;
 static SHIFT: usize = 3;
 static PR: u64 = 2305843009213693951; // 2^61 - 1
-// static PR_128: u128 = 2305843009213693951; // 2^61 - 1
 
 pub fn modp(a: u64) -> u64 {
     let i: u64 = (a & PR) + (a >> MERSENNE_PRIME_EXP);
-	if i >= PR {i - PR} else {i}
+	if i >= PR { i - PR } else { i }
 }
 
 // pub fn neg_modp(a: u64) -> u64 {
@@ -25,7 +24,7 @@ pub fn neg_modp(a: u64) -> u64 {
 }
 
 pub fn add_modp(a: u64, b: u64) -> u64 {
-    let res: u64 = a + b; // all less than 2^61 - 1 , thus won't overflow 2^64
+    let res: u64 = a + b; // both less than 2^61 - 1 , thus won't overflow 2^64
     if res >= PR { res - PR } else { res }
 }
 
@@ -38,12 +37,18 @@ pub fn sub_modp(a: u64, b: u64) -> u64 {
     }
 }
 
+// pub fn mul_modp(a: u64, b: u64) -> u64 {
+//     let cc: u128 = a as u128 * b as u128;
+//     let c = (cc >> 64) as u64;
+// 	   let e = cc as u64;
+//     let res: u64 = (e & PR) + ((e >> MERSENNE_PRIME_EXP) ^ (c << SHIFT));
+// 	   if res >= PR { res - PR } else { res }
+// }
+
 pub fn mul_modp(a: u64, b: u64) -> u64 {
     let cc: u128 = a as u128 * b as u128;
-    let c = (cc >> 64) as u64;
-	let e = cc as u64;
-    let res: u64 = (e & PR) + ((e >> MERSENNE_PRIME_EXP) ^ (c << SHIFT));
-	if res >= PR { res - PR } else { res }
+    let res = ((cc >> 61) + (cc & PR as u128)) as u64;
+    if res >= PR { res - PR } else {res}
 }
 
 fn egcd(a: u64, b: u64) -> (u64, u64, u64) {

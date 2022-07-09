@@ -1,6 +1,10 @@
+#![allow(non_snake_case)]
+
 pub mod prover;
+pub mod prover2;
 
 pub use prover::*;
+pub use prover2::*;
 
 #[cfg(test)]
 mod tests {
@@ -14,7 +18,7 @@ mod tests {
 
         let T: usize = 10000;
         let L: usize = 5;
-        let k: usize = 8; 
+        let ks = [8, 8]; 
         let party_id: usize = 1;
 
         println!("T: {}", T);
@@ -26,7 +30,7 @@ mod tests {
         // let inputs = (0..L).map(|_| (0..T).map(|_| rng.gen_range(0,2)).collect()).collect();
 
         let prove_start = Instant::now();
-        let proof = prove_and_gates(party_id, &inputs, k, sid, &mut rng);
+        let proof = prove_and_gates(party_id, &inputs, &ks, sid, &mut rng);
         let prove_time = prove_start.elapsed();
         println!("Proving time: {:?}", prove_time);
 

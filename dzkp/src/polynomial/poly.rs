@@ -167,7 +167,7 @@ impl Poly {
                 .iter_mut()
                 .zip(&self.coeffs)
                 .for_each(|(a, b)| {
-                    // *a += b;
+                    // *a -= b;
                     *a = sub_modp(*a, *b);
                     *a = neg_modp(*a);
                 });
@@ -203,12 +203,4 @@ impl Poly {
             Self { coeffs: result }
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    // #[test]
-    // fn test_lag_bases {
-
-    // }
 }

@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 pub mod poly;
 pub mod interpolation;
 
@@ -83,7 +85,5 @@ mod tests {
         println!("k: {:?}", k);
         println!("Interpolate time: {:?}", time1);
         println!("Dot prod time: {:?}", time2);
-
-
     }
 }

@@ -19,13 +19,15 @@ pub struct Proof {
 
 fn fliop<R: Rng>(
     inputs: &Vec<Vec<u64>>,
-    k: usize, // compression parameter
+    ks: &[usize], // compression parameter
     sid: usize, // session id
     rng: &mut R,
-    circuit: &dyn Fn(&Vec<Vec<Poly>>, &Vec<u64>) -> Poly,
+    // circuit: &dyn Fn(&Vec<Vec<Poly>>, &Vec<u64>) -> Poly,
 ) -> Proof {
     let L: usize = inputs.len(); // number of variables
     let T: usize = inputs[0].len(); // number of copies
+
+    let mut k: usize = ks[0];
 
     let S: usize = (T as f64 / k as f64).ceil() as usize; // rounding down
     let mut s0 = T; // s in the last round
@@ -41,9 +43,11 @@ fn fliop<R: Rng>(
     let mut transcript1 = Transcript::new(b"DZKP_FLIOP_1");
     let mut transcript2 = Transcript::new(b"DZKP_FLIOP_2");
     // Add public information
-    transcript1.append_message(b"k", &(k as u64).to_be_bytes());
+    transcript1.append_message(b"k0", &(ks[0] as u64).to_be_bytes());
+    transcript1.append_message(b"k1", &(ks[1] as u64).to_be_bytes());
     transcript1.append_message(b"sid", &(sid as u64).to_be_bytes());
-    transcript2.append_message(b"k", &(k as u64).to_be_bytes());
+    transcript2.append_message(b"k0", &(ks[0] as u64).to_be_bytes());
+    transcript2.append_message(b"k1", &(ks[1] as u64).to_be_bytes());
     transcript2.append_message(b"sid", &(sid as u64).to_be_bytes());
 
     transcript1.challenge_bytes(b"eta", &mut buf1);
@@ -58,38 +62,58 @@ fn fliop<R: Rng>(
 
     let mut f_eta_evals_r = eta_powers.clone();
     let mut f_eta_evals_r0 = Vec::new();
-    let mut f_eta_polys: Vec<Poly> = Vec::new();
 
     let mut p_coeffs_ss1: Vec<Vec<u64>> = Vec::new();
     let mut p_coeffs_ss2: Vec<Vec<u64>> = Vec::new();
 
     let lag_start = Instant::now();
-    let lag_bases = get_lagrange_bases(k as u64);
+    let lag_bases_0 = get_lagrange_bases(ks[0] as u64);
+    let lag_bases_1 = get_lagrange_bases(ks[1] as u64);
     let lag_time = lag_start.elapsed();
     println!("Lagrange time: {:?}", lag_time);
+    
+    let mut lag_ptr = &lag_bases_0;
 
     loop {
         println!("s: {:?}", s);
+        println!("k: {:?}", k);
 
         // Interpolation
         let interpolation_start = Instant::now();
         let mut f_polys: Vec<Vec<Poly>> = Vec::new();
-        for l in 0..L {
+        for l in 0..L - 1 {
             let mut f_l_polys: Vec<Poly> = Vec::new();
             for i in 0..s {
                 let cur = i * k;
                 let end = if i == s - 1 { s0 } else { cur + k }; 
-                let poly = interpolate(&lag_bases, &f_evals_r[l][cur..end].to_vec());
+                let poly = interpolate(lag_ptr, &f_evals_r[l][cur..end].to_vec());
                 f_l_polys.push(poly);
             }
             f_polys.push(f_l_polys);
         }
+        let mut agg_input = vec![0u64; k];
+        let t = f_evals_r[L - 1].len();
+        for i in 0..s {
+            let len = if i == s - 1 { t - (s - 1) * k } else { k }; 
+            for j in 0..len {
+                agg_input[j] = add_modp(agg_input[j], mul_modp(f_evals_r[L - 1][i * k + j], f_eta_evals_r[i]));
+            }
+        }
+        let poly = interpolate(lag_ptr, &agg_input);
+        f_polys.push([poly].to_vec());
         let interpolation_time = interpolation_start.elapsed();
         println!("Interpolation time: {:?}", interpolation_time);
 
         // Compute p(X)
         let poly_mul_start = Instant::now();
-        let p_poly = circuit(&f_polys, &f_eta_evals_r);
+        let mut p_poly = Poly::zero();
+        for i in 0..s {
+            let tmp1 = f_polys[0][i].mul(&f_polys[1][i]);
+            let tmp2 = f_polys[2][i].mul(&f_polys[3][i]);
+            let res = tmp1.add(&tmp2).cmul(f_eta_evals_r[i]);
+            p_poly = p_poly.add(&res);
+        }
+        p_poly = p_poly.add(&f_polys[L - 1][0]);
         let poly_mul_time = poly_mul_start.elapsed();
         println!("Poly mul time: {:?}", poly_mul_time);
 
@@ -116,28 +140,41 @@ fn fliop<R: Rng>(
         let r = add_modp(r1, r2);
 
         let evaluation_start = Instant::now();
+        
         // Compute new inputs
+        let mut var_evals_r = Vec::new();
+        let lag_evals_r: Vec<u64> = (0..k).map(|i| lag_ptr[i].evaluate(r)).collect();
+        // println!("f_evals_r[L - 1].len(): {}", f_evals_r[L - 1].len()); 
+        for i in 0..s {
+            let len = if i == s - 1 { t - (s - 1) * k } else { k };
+            // println!("len: {}", len); 
+            // println!("i * k: {}", i * k); 
+            var_evals_r.push((0..len).map(|j|
+                mul_modp(f_evals_r[L - 1][i * k + j], lag_evals_r[j])
+            ).sum());
+        }
+
         f_evals_r = Vec::new();
-        for l in 0..L {
+        for l in 0..L - 1 {
             f_evals_r.push((0..s).map(|i| 
                 f_polys[l][i].evaluate(r)
             ).collect());
         }
+        f_evals_r.push(var_evals_r);
 
+        // the second round till the last round
+        k = ks[1];
+        lag_ptr = &lag_bases_1;
         s0 = s;
         s = (s0 as f64 / k as f64).ceil() as usize;
 
         f_eta_evals_r0 = f_eta_evals_r.clone();
+        f_eta_evals_r = vec![];
         for i in 0..s {
             let cur = i * k;
             let end = if i == s - 1 { s0 } else { cur + k };
-            let poly = interpolate(&lag_bases, &f_eta_evals_r0[cur..end].to_vec());
-            f_eta_polys.push(poly);
-        }
-
-        f_eta_evals_r = vec![];
-        for i in 0..s {
-            f_eta_evals_r.push(f_eta_polys[i].evaluate(r));
+            let poly = interpolate(&lag_ptr, &f_eta_evals_r0[cur..end].to_vec());
+            f_eta_evals_r.push(poly.evaluate(r));
         }
         let evaluation_time = evaluation_start.elapsed();
         println!("Evaluation time: {:?}", evaluation_time);
@@ -172,19 +209,7 @@ fn fliop<R: Rng>(
 // v2 = 4v3 + 2v6 + 2v7 - v9, v3 = v2
 // v4 = v10 + v11
 // v0 * v1 + v2 * v3 + v4 = 0
-fn circuit1(input_polys: &Vec<Vec<Poly>>, etas: &Vec<u64>) -> Poly
-{
-    assert_eq!(input_polys.len(), 5); // 5 variables in total
-    let s = input_polys[0].len();
-    let mut poly = Poly::zero();
-    for i in 0..s {
-        let tmp1 = input_polys[0][i].mul(&input_polys[1][i]);
-        let tmp2 = input_polys[2][i].mul(&input_polys[3][i]);
-        let res = tmp1.add(&tmp2).add(&input_polys[4][i]);
-        poly = poly.add(&res.cmul(etas[i]));
-    }
-    poly
-}
+
 
 /// P2's local computaion
 // fn circuit2(input_polys: &Vec<Vec<Poly>>, etas: &Vec<u64>) -> Poly {
@@ -194,15 +219,14 @@ fn circuit1(input_polys: &Vec<Vec<Poly>>, etas: &Vec<u64>) -> Poly
 pub fn prove_and_gates<R: Rng>(
     _party_id: usize,
     inputs: &Vec<Vec<u64>>,
-    k: usize, // compression parameter
+    ks: &[usize], // compression parameter
     sid: usize, // session id
     rng: &mut R,
 ) -> Proof {
-    fliop(inputs, k, sid, rng, &circuit1)
+    fliop(inputs, ks, sid, rng) //, &circuit1)
     // match party_id {
     //     0 => fliop(inputs, k, sid, rng, &circuit0),
     //     1 => fliop(inputs, k, sid, rng, &circuit1),
     //     2 => fliop(inputs, k, sid, rng, &circuit2),
     // }
 }
-

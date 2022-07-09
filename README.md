@@ -2,6 +2,7 @@
 
 ### 安装Rust
 参考[官方](https://www.rust-lang.org/zh-CN/tools/install)推荐安装方式
+
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ### 运行测试
