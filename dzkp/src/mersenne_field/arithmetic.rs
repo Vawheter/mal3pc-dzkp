@@ -86,3 +86,29 @@ pub fn inverse(a: u64) -> u64 {
 pub fn rand_modp<R: Rng>(rng: &mut R) -> u64 {
     rng.gen_range(0, PR)
 }
+
+pub fn inner_productp(input_left: &Vec<u64>, input_right: &Vec<u64>) -> u64 {
+    let len_left = input_left.len();
+    let len_right = input_right.len();
+    let bound = (1 << (128 - 2 * MERSENNE_PRIME_EXP)) - 1;
+    assert_eq!(bound, 63);
+    assert_eq!(len_left, len_right);
+    let mut i = 0;
+    let mut result : u128 = 0;
+    loop{
+        let start = i;
+        let end = if i + bound < len_left {i + bound} else {len_left};
+        for j in start..end {
+            result += input_left[j] as u128 * input_right[j] as u128;
+        }
+        let higher = (result >> (2 * MERSENNE_PRIME_EXP)) as u64;
+        let middle = ((result >> MERSENNE_PRIME_EXP) as u64 & PR) as u64;
+        let lower = (result as u64 & PR) as u64;
+        result = modp(higher + middle + lower) as u128;
+        i = end;
+        if i == len_left {
+            break;
+        }
+    }
+    result as u64
+}

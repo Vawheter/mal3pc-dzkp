@@ -1,10 +1,10 @@
 #![allow(non_snake_case)]
 
-pub mod prover;
-pub mod prover2;
+//pub mod prover;
+pub mod prover3;
 
-pub use prover::*;
-pub use prover2::*;
+//pub use prover::*;
+pub use prover3::*;
 
 #[cfg(test)]
 mod tests {
@@ -16,9 +16,9 @@ mod tests {
         use rand::{thread_rng, Rng};
         use ark_serialize::CanonicalSerialize;
 
-        let T: usize = 10000;
+        let T: usize = 10000000;
         let L: usize = 5;
-        let ks = [8, 8]; 
+        let ks = [10, 10]; 
         let party_id: usize = 1;
 
         println!("T: {}", T);
