@@ -6,7 +6,6 @@
 clock_t begin_time, finish_time;
 
 uint64_t get_rand() {
-    srand((unsigned)time(NULL));
     return rand() & PR;
 }
 
@@ -69,35 +68,14 @@ uint64_t* evaluate_bases(uint64_t n, uint64_t r) {
     return result;
 }
 
-uint64_t* matrix_mul(uint64_t* vec, uint64_t** input, uint64_t vrow, uint64_t irow) {
-    uint64_t* result = new uint64_t[irow];
-    uint128_t temp_result;
-    uint64_t higher, middle, lower;
-    for(int i = 0; i < irow; i++) {
-        temp_result = 0;
-        for(int j = 0; j < vrow; j++) {
-            temp_result += ((uint128_t) vec[j]) * ((uint128_t) input[j][i]);
-        }
-        higher = (temp_result >> (2 * PRIME_EXP));
-        middle = (temp_result >> PRIME_EXP) & PR;
-        lower = temp_result & PR;
-        result[i] = modp(higher + middle + lower);
-    }
-
-    return result;
-}
-
 Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_t copy, uint64_t k, uint64_t sid) {
     uint64_t L = var;
     uint64_t T = copy;
-
     uint64_t s = (T - 1) / k + 1;
-
     uint64_t eta = generate_challenge();
 
-    //Prepare Another Input
+    //Prepare Input
     begin_time = clock();
-
     uint64_t eta_power = 1;
     for(int i = 0; i < k; i++) {
         for(int j = 0; j < s; j++) {
@@ -110,42 +88,45 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
     cout<<"Prepare Input Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
 
     s *= 2;
-
     vector< vector<uint64_t> > p_coeffs_ss1;
     vector< vector<uint64_t> > p_coeffs_ss2;
-
     uint64_t** base = get_bases(k);
     uint64_t* eval_base;
     uint64_t s0;
+    uint64_t** eval_result = new uint64_t*[k];
+    for(int i = 0; i < k; i++) {
+        eval_result[i] = new uint64_t[k];
+    }
+    uint64_t* eval_p_poly = new uint64_t[2 * k - 1];
+    uint64_t r;
+    uint128_t temp_result;
+    uint64_t index;
 
     while(true){
         cout<<"s : "<<s<<endl;
         cout<<"k : "<<k<<endl;
 
-        //interpolation
+        //Compute P(X)
         begin_time = clock();
-        uint64_t** eval_left_polys = new uint64_t*[k-1];
-        for(int i = 0; i < k - 1; i++){
-            eval_left_polys[i] = matrix_mul(base[i], input_left, k, s);
+        for(int i = 0; i < k; i++) {
+            for(int j = 0; j < k; j++) {
+                eval_result[i][j] = inner_productp(input_left[i], input_right[j], s);
+            }
         }
-        uint64_t** eval_right_polys = new uint64_t*[k-1];
-        for(int i = 0; i < k - 1; i++){
-            eval_right_polys[i] = matrix_mul(base[i], input_right, k, s);
+
+        for(int i = 0; i < k; i++) {
+            eval_p_poly[i] = eval_result[i][i];
+        }
+        for(int i = 0; i < k - 1; i++) {
+            eval_p_poly[i + k] = 0;
+            for(int j = 0; j < k; j++) {
+                for (int l = 0; l < k; l++) {
+                    eval_p_poly[i+k] = add_modp(eval_p_poly[i+k], mul_modp(base[i][j], mul_modp(eval_result[j][l], base[i][l])));
+                }
+            }
         }
         finish_time = clock();
         cout<<"Interpolation Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
-
-        //compute p(X)
-        begin_time = clock();
-        uint64_t* eval_p_poly = new uint64_t[2 * k - 1];
-        for(int i = 0; i < k; i++) {
-            eval_p_poly[i] = inner_productp(input_left[i], input_right[i], s);
-        }
-        for(int i = 0; i < k - 1; i++) {
-            eval_p_poly[i + k] = inner_productp(eval_left_polys[i], eval_right_polys[i], s);
-        }
-        finish_time = clock();
-        cout<<"Compute P(X) Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
 
         //generate proof
         begin_time = clock();
@@ -172,12 +153,10 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
 
         // Prepare Next Input
         begin_time = clock();
-        uint64_t r = generate_challenge();
+        r = generate_challenge();
         eval_base = evaluate_bases(k, r);
         s0 = s;
         s = (s - 1) / k + 1;
-        uint128_t temp_result;
-        uint64_t higher, middle, lower, index;
         for(int i = 0; i < k; i++) {
             for(int j = 0; j < s; j++) {
                 index = i * s + j;
@@ -186,19 +165,13 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
                     for(int l = 0; l < k; l++) {
                         temp_result += ((uint128_t) eval_base[l]) * ((uint128_t) input_left[l][index]);
                     }
-                    higher = (temp_result >> (2 * PRIME_EXP));
-                    middle = (temp_result >> PRIME_EXP) & PR;
-                    lower = temp_result & PR;
-                    input_left[i][j] = modp(higher + middle + lower);
+                    input_left[i][j] = modp_128(temp_result);
 
                     temp_result = 0;
                     for(int l = 0; l < k; l++) {
                         temp_result += ((uint128_t) eval_base[l]) * ((uint128_t) input_right[l][index]);
                     }
-                    higher = (temp_result >> (2 * PRIME_EXP));
-                    middle = (temp_result >> PRIME_EXP) & PR;
-                    lower = temp_result & PR;
-                    input_right[i][j] = modp(higher + middle + lower);
+                    input_right[i][j] = modp_128(temp_result);
                 }
                 else {
                     input_left[i][j] = 0;
@@ -258,6 +231,7 @@ int main() {
     uint64_t L = 5;
     uint64_t k = 4;
     uint64_t _party_id = 1;
+    srand((unsigned)time(NULL));
     uint64_t sid = get_rand();
 
     uint64_t** input = new uint64_t*[L];

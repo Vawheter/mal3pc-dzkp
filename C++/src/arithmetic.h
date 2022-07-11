@@ -11,10 +11,18 @@ static const uint64_t PR = 2305843009213693951;
 
 uint64_t modp(uint64_t a) {
     uint64_t res = (a>>PRIME_EXP) + (a & PR);
-    if (res < PR)
-        return res;
-    else
-        return res - PR;
+    if (res >= PR) {
+        res -= PR;
+    }
+    return res;
+}
+
+uint64_t modp_128(uint128_t a){
+    uint64_t higher, middle, lower;
+    higher = (a >> (2 * PRIME_EXP));
+    middle = (a >> PRIME_EXP) & PR;
+    lower = a & PR;
+    return modp(higher + middle + lower);
 }
 
 uint64_t neg_modp(uint64_t a) {
@@ -23,10 +31,10 @@ uint64_t neg_modp(uint64_t a) {
 
 uint64_t add_modp(uint64_t a, uint64_t b) {
     uint64_t res = a + b;
-    if (res < PR)
-        return res;
-    else
-        return res - PR;
+    if (res >= PR) {
+        res -= PR;
+    }
+    return res;
 }
 
 uint64_t mul_modp(uint64_t a, uint64_t b) {
@@ -56,18 +64,16 @@ uint64_t inverse(uint64_t a) {
         v = y;
         y = z;
     }
-    if (u < PR) 
-        return u;
-    else {
-        z = -u;
-        return PR - z;
+    if (u >= PR) {
+        u += PR;
     }
+    return u;
 }
 
 uint64_t inner_productp(uint64_t* a, uint64_t* b, uint64_t size) {
     uint128_t result = 0;
     uint64_t bound = 63;
-    uint64_t start, end, higher, middle, lower;
+    uint64_t start, end;
     start = 0;
     while(true) {
         if (start + bound < size) {
@@ -79,10 +85,7 @@ uint64_t inner_productp(uint64_t* a, uint64_t* b, uint64_t size) {
         for(int i = start; i < end; i++) {
             result += ((uint128_t)a[i]) * ((uint128_t)b[i]);
         }
-        higher = (result >> (2 * PRIME_EXP));
-        middle = (result >> PRIME_EXP) & PR;
-        lower = result & PR;
-        result = modp(higher + middle + lower);
+        result = modp_128(result);
         start = end;
         if (start == size) break;
     }
