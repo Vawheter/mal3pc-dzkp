@@ -37,6 +37,14 @@ uint64_t add_modp(uint64_t a, uint64_t b) {
     return res;
 }
 
+uint64_t sub_modp(uint64_t a, uint64_t b) {
+    if (a >= b) {
+        return a - b;
+    } else {
+        return PR - b + a;
+    }
+}
+
 uint64_t mul_modp(uint64_t a, uint64_t b) {
     uint128_t res = ((uint128_t) a) * ((uint128_t) b);
     uint64_t higher = (res>>PRIME_EXP);
@@ -84,6 +92,50 @@ uint64_t inner_productp(uint64_t* a, uint64_t* b, uint64_t size) {
         }
         for(int i = start; i < end; i++) {
             result += ((uint128_t)a[i]) * ((uint128_t)b[i]);
+        }
+        result = modp_128(result);
+        start = end;
+        if (start == size) break;
+    }
+    return result;
+}
+
+uint64_t bacth_add_modp(uint64_t* a, uint64_t* b, uint64_t size) {
+    uint128_t result = 0;
+    uint64_t bound = 63;
+    uint64_t start, end;
+    start = 0;
+    while(true) {
+        if (start + bound < size) {
+            end = start + bound;
+        }
+        else {
+            end = size;
+        }
+        for(int i = start; i < end; i++) {
+            result += ((uint128_t)a[i]) + ((uint128_t)b[i]);
+        }
+        result = modp_128(result);
+        start = end;
+        if (start == size) break;
+    }
+    return result;
+}
+
+uint64_t bacth_sum_modp(uint64_t* a, uint64_t size) {
+    uint128_t result = 0;
+    uint64_t bound = 63;
+    uint64_t start, end;
+    start = 0;
+    while(true) {
+        if (start + bound < size) {
+            end = start + bound;
+        }
+        else {
+            end = size;
+        }
+        for(int i = start; i < end; i++) {
+            result += (uint128_t)a[i];
         }
         result = modp_128(result);
         start = end;
