@@ -301,7 +301,7 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
     begin_time = clock();
     temp_result = 0;
     for(int i = 0; i < k; i++) {
-        temp_result += bacth_sum_modp(input_mono[i], s);
+        temp_result += batch_sum_modp(input_mono[i], s);
     }
     p_eval_r_ss[0] = modp_128(temp_result);
     finish_time = clock();

@@ -100,7 +100,7 @@ uint64_t inner_productp(uint64_t* a, uint64_t* b, uint64_t size) {
     return result;
 }
 
-uint64_t bacth_add_modp(uint64_t* a, uint64_t* b, uint64_t size) {
+uint64_t batch_add_modp(uint64_t* a, uint64_t* b, uint64_t size) {
     uint128_t result = 0;
     uint64_t bound = 63;
     uint64_t start, end;
@@ -122,7 +122,7 @@ uint64_t bacth_add_modp(uint64_t* a, uint64_t* b, uint64_t size) {
     return result;
 }
 
-uint64_t bacth_sum_modp(uint64_t* a, uint64_t size) {
+uint64_t batch_sum_modp(uint64_t* a, uint64_t size) {
     uint128_t result = 0;
     uint64_t bound = 63;
     uint64_t start, end;
