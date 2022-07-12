@@ -130,9 +130,9 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
     uint16_t cnt = 0;
 
     while(true){
-        cnt++;
         cout<<"s : "<<s<<endl;
         cout<<"k : "<<k<<endl;
+        cout<<"cnt : "<<cnt<<endl;
 
         //Compute P(X)
         begin_time = clock();
@@ -156,34 +156,11 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
         finish_time = clock();
         cout<<"Interpolation Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
 
-        // Check p's evaluations
-        for(int l = 0; l < 2 * k - 1; l++) {
-            uint64_t* eval_base = evaluate_bases(k, l);
-            uint64_t a = 0, b = 0, c = 0, d = 0, res = 0;
-            for(int j = 0; j < s; j++) {
-                uint128_t tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0;
-                for(int i = 0; i < k; i++) {
-                    tmp1 += ((uint128_t) eval_base[i]) * ((uint128_t) input_left[i][2 * j]);
-                    tmp2 += ((uint128_t) eval_base[i]) * ((uint128_t) input_right[i][2 * j]);
-                    tmp3 += ((uint128_t) eval_base[i]) * ((uint128_t) input_left[i][2 * j + 1]);
-                    tmp4 += ((uint128_t) eval_base[i]) * ((uint128_t) input_right[i][2 * j + 1]);
-                }
-                a = modp_128(tmp1);
-                b = modp_128(tmp2);
-                c = modp_128(tmp3);
-                d = modp_128(tmp4);
-                if(l < k) {
-                    if(a != input_left[l][2 * j] || b != input_right[l][2 * j] || c != input_left[l][2 * j + 1] || d != input_right[l][2 * j + 1]) {
-                        cout << "wrong f evaluation" << endl;
-                    }
-                }
-                res = add_modp(res, add_modp(mul_modp(a, b), mul_modp(c, d)));
-            }
-            if(res != eval_p_poly[l]) {
-                cout << "wrong p evaluation, index: " << l << endl;
-            }
-            // eval_p_poly[l] = res;
+        uint64_t res = 0;
+        for(int j = 0; j < k; j++) { // Assume k < 64
+            res += eval_p_poly[j];
         }
+        cout << "In proving, p_eval_k_sum: " << modp(res) << endl;
 
         //generate proof
         begin_time = clock();
@@ -204,14 +181,38 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
         finish_time = clock();
         cout<<"Generate Proof Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
 
+        // Check shares of p's evaluations
+        // for(int i = 0; i < 2 * k - 1; i++) {
+        //     uint64_t res = add_modp(p_coeffs_ss1[cnt][i], p_coeffs_ss2[cnt][i]);
+        //     if(res != eval_p_poly[i])
+        //     {
+        //         cout << "generating wrong p_eval shares" << endl;
+        //     }
+        // }
+
         if (s == 1) {
+            uint64_t res = 0;
+            for(int i = 0; i < k; i++) { // Assume k < 64
+                res += add_modp(mul_modp(input_left[i][0], input_right[i][0]), mul_modp(input_left[i][1], input_right[i][1]));
+            }
+            cout << "last res: " << modp(res) << endl;
+
+            // r = rands[cnt];
+            cout << "r: " << r << endl; 
+            uint64_t* eval_base = evaluate_bases(2 * k - 1, r);
+            uint128_t temp_result = 0;
+            for(int i = 0; i < 2 * k - 1; i++) { 
+                temp_result += ((uint128_t) eval_base[i]) * ((uint128_t) eval_p_poly[i]);
+            }
+            cout << "last p_eval_r: " << modp_128(temp_result) << endl;
+                
             break;
         }
 
         // Prepare Next Input
         begin_time = clock();
         // r = generate_challenge();
-        r = rands[cnt];
+        r = rands[cnt + 1];
         cout << "r: " << r << endl; 
         eval_base = evaluate_bases(k, r);
         // for(int j = 0; j < k; j++) {
@@ -243,6 +244,8 @@ Proof fliop(uint64_t** input_left, uint64_t** input_right, uint64_t var, uint64_
         }
         finish_time = clock();
         cout<<"Prepare Input Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
+
+        cnt++;
     }
 
     Proof result = {p_coeffs_ss1, p_coeffs_ss2};
@@ -286,7 +289,8 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
     uint64_t r, s0, index, cnt = 0;
     uint128_t temp_result;
 
-    uint64_t len = log(T) / log(k) + 2;
+    uint64_t len = log(T) / log(k) + 1;
+    cout << "len: " << len << endl;
     // uint64_t* p_eval_sum = new uint64_t[len];
     // uint64_t* f_evals_r = new uint64_t[L * len];
     vector<uint64_t> p_eval_ksum_ss(len);
@@ -294,7 +298,6 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
     vector<uint64_t> input_left_ss(2 * k);
     vector<uint64_t> input_right_ss(2 * k);
 
-    // Compute share of the monomial's polynomial evaluation at k - 1
     begin_time = clock();
     temp_result = 0;
     for(int i = 0; i < k; i++) {
@@ -304,29 +307,39 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
     finish_time = clock();
     cout<<"Compute Monomial Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
 
-    uint64_t* eval_base_k = evaluate_bases(k, k - 1);
-
     s *= 2;
     while(true)
     {
         cout<<"s : "<<s<<endl;
         cout<<"k : "<<k<<endl;
+        cout<<"cnt : "<<cnt<<endl;
 
         // Compute share of sum of p's evaluations over [0, k - 1]
         uint64_t res = 0;
         for(int j = 0; j < k; j++) { // Assume k < 64
             res += p_eval_ss[cnt][j];
         }
-        p_eval_ksum_ss[cnt] = modp(temp_result);
+        p_eval_ksum_ss[cnt] = modp(res);
+
+        if(s == 1) {
+            eval_base = evaluate_bases(2 * k - 1, r);
+            temp_result = 0;
+            for(int j = 0; j < 2 * k - 1; j++) {
+                temp_result += ((uint128_t) eval_base[j]) * ((uint128_t) p_eval_ss[cnt][j]);
+            }
+            p_eval_r_ss[cnt + 1] = modp_128(temp_result);
+            break;
+        }
 
         r = rands[cnt + 1];
-        cout << "r: " << r << endl; 
+        cout << "r: " << r << endl;
         eval_base = evaluate_bases(2 * k - 1, r);
         temp_result = 0;
         for(int j = 0; j < 2 * k - 1; j++) {
             temp_result += ((uint128_t) eval_base[j]) * ((uint128_t) p_eval_ss[cnt][j]);
         }
         p_eval_r_ss[cnt + 1] = modp_128(temp_result);
+        // cout << "In gen_vermsg, len of p_eval_r_ss: " << p_eval_r_ss.size() << endl;
 
         // Compute share of p's evaluation at r
         begin_time = clock();
@@ -335,6 +348,7 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
         // for(int j = 0; j < k; j++) {
         //     cout << "evaluate_bases[" << j << "]: " << eval_base[j] << endl;
         // }
+
         s0 = s;
         s = (s - 1) / k + 1;
         for(int i = 0; i < k; i++) {
@@ -362,20 +376,14 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
         finish_time = clock();
         cout<<"Prepare Input Time = "<<double(finish_time-begin_time)/CLOCKS_PER_SEC * 1000<<"ms"<<endl;
 
-        if(s == 1) 
-        {
-            break;
-        }
-
         cnt++;
     }
-    cout << "out of loop" << endl;
 
     for(int i = 0; i < k; i++) {
-        input_left_ss[i] = input_left[i][0];
-        input_left_ss[2 * i] = input_left[i][1];
-        input_right_ss[i] = input_right[i][0];
-        input_right_ss[2 * i] = input_right[i][1];
+        input_left_ss[2 * i] = input_left[i][0];
+        input_left_ss[2 * i + 1] = input_left[i][1];
+        input_right_ss[2 * i] = input_right[i][0];
+        input_right_ss[2 * i + 1] = input_right[i][1];
     }
 
     VerMsg vermsg = {
@@ -389,31 +397,39 @@ VerMsg gen_vermsg(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uin
 }
 
 bool verify_and_gates(vector<vector<uint64_t>> p_eval_ss, uint64_t** input_left, uint64_t** input_right, uint64_t** input_mono, VerMsg other_vermsg, uint64_t var, uint64_t copy, uint64_t k, uint64_t sid, uint64_t* rands) {
+    cout << "in verify_and_gates" << endl;
     uint64_t L = var;
     uint64_t T = copy;
     uint64_t s = (T - 1) / k + 1;
     uint64_t len = log(T) / log(k) + 1;
+    cout << "len: " << len << endl;
     
     VerMsg self_vermsg = gen_vermsg(p_eval_ss, input_left, input_right, input_mono, var, copy, k, sid, rands);
     
     for(int i = 0; i < len; i++) {
         uint64_t p_eval_ksum = add_modp(self_vermsg.p_eval_ksum_ss[i], other_vermsg.p_eval_ksum_ss[i]);
         uint64_t p_eval_r = add_modp(self_vermsg.p_eval_r_ss[i], other_vermsg.p_eval_r_ss[i]);
+        cout << "p_eval_ksum: " << p_eval_ksum << endl;
+        cout << "p_eval_r: " << p_eval_r << endl;
         if(p_eval_ksum != p_eval_r) {
             cout << i << "-th sum check didn't pass" << endl;
-            return false;
+            // return false;
         }
     }
-    uint64_t* last_input_left = new uint64_t[k];
-    uint64_t* last_input_right = new uint64_t[k];
+    uint64_t* last_input_left = new uint64_t[2 * k];
+    uint64_t* last_input_right = new uint64_t[2 * k];
     for(int i = 0; i < k; i++) {
-        last_input_left[i] = add_modp(self_vermsg.input_left_ss[i], other_vermsg.input_left_ss[i]);
         last_input_left[2 * i] = add_modp(self_vermsg.input_left_ss[2 * i], other_vermsg.input_left_ss[2 * i]);
-        last_input_right[i] = add_modp(self_vermsg.input_right_ss[i], other_vermsg.input_right_ss[i]);
+        last_input_left[2 * i + 1] = add_modp(self_vermsg.input_left_ss[2 * i + 1], other_vermsg.input_left_ss[2 * i + 1]);
         last_input_right[2 * i] = add_modp(self_vermsg.input_right_ss[2 * i], other_vermsg.input_right_ss[2 * i]);
+        last_input_right[2 * i + 1] = add_modp(self_vermsg.input_right_ss[2 * i + 1], other_vermsg.input_right_ss[2 * i + 1]);
     }
     uint64_t res = inner_productp(last_input_left, last_input_right, 2 * k);
+    // cout << "len of p_eval_r_ss: " << self_vermsg.p_eval_r_ss.size() << endl;
+    // cout << "len of p_eval_r_ss: " << other_vermsg.p_eval_r_ss.size() << endl;
     uint64_t last_p_eval_r = add_modp(self_vermsg.p_eval_r_ss[len], other_vermsg.p_eval_r_ss[len]);
+    cout << "res: " << res << endl;
+    cout << "last_p_eval_r: " << last_p_eval_r << endl;
     if(res != last_p_eval_r) {
         cout << "last check didn't pass" << endl;
         return false;
@@ -492,7 +508,7 @@ int main() {
         rands[i] = get_rand();
     }
 
-    // Generating satisfying inputs
+    // Generate satisfying inputs
     uint64_t** input = new uint64_t*[L];
     for(int i = 0; i < L - 1; i++) {
         input[i] = new uint64_t[T];
@@ -506,7 +522,7 @@ int main() {
         input[L - 1][j] = modp_128(temp_res);
     }
 
-    // Distributing shares of inputs
+    // Distribute shares of inputs
     uint64_t** input_ss1 = new uint64_t*[L];
     for(int i = 0; i < L; i++) {
         input_ss1[i] = new uint64_t[T];
