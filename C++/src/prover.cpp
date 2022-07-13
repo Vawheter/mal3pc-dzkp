@@ -310,8 +310,7 @@ VerMsg gen_vermsg(
                 for(int j = 0; j < s; j++) {
                     input[i][2 * j] = mul_modp(input[i][2 * j], eta_temp);
                     input[i][2 * j + 1] = mul_modp(input[i][2 * j + 1], eta_temp);
-                    input_mono[i][j] = mul_modp(input_mono[i][j], eta_temp);
-                    temp_result = temp_result + input_mono[i][j];
+                    temp_result += mul_modp(input_mono[i][j], eta_temp);
                     eta_temp = mul_modp(eta_temp, eta);
                 }
             }
@@ -322,8 +321,7 @@ VerMsg gen_vermsg(
             uint64_t eta_temp = 1;
             for(int i = 0; i < k; i++) {
                 for(int j = 0; j < s; j++) {
-                    input_mono[i][j] = mul_modp(input_mono[i][j], eta_temp);
-                    temp_result = temp_result + input_mono[i][j];
+                    temp_result += mul_modp(input_mono[i][j], eta_temp);
                     eta_temp = mul_modp(eta_temp, eta);
                 }
             }
